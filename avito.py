@@ -1,7 +1,12 @@
+#Cоздание заголовка с названием региона + радиус
+#version 1.5
+
+#Spone 22.02.20
 #1.1 Добавлен ввод url
 #1.2 Добавлено имя файла.csv
 #1.3 Исправлена ошибка с отображением цены товара
 #1.4 Вывод сообщения о создании файла
+#1.5 Проверка на корректность ссылки (параметры)
 
 import requests
 from bs4 import BeautifulSoup
@@ -77,6 +82,10 @@ def write_csv(data, name_file = 'avito'):
 
 def main(path):
     
+    if(path.find('?') == -1):
+        print('Ваша URL ссылка не имеет параметров! Парсинг невозможен!')
+        return
+
     base_url = path.split('?')[0] + '?' #'https://www.avito.ru/tver/igry_pristavki_i_programmy?p=1'
     atributes2 = ''
 
