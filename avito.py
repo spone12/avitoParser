@@ -6,13 +6,15 @@
 #1.2 Добавлено имя файла.csv
 #1.3 Исправлена ошибка с отображением цены товара
 #1.4 Вывод сообщения о создании файла
-#1.5 Проверка на корректность ссылки (параметры)
+#1.5 Проверка на корректность ссылки (параметры) и что является сайтом avito
 #1.6 Полностью переписана структура параметров, добавлен радиус и геолокация
+#1.7 Убрана завязка на количество страниц, теперь если только одна страница, то берётся только с неё
 
 import requests
 from bs4 import BeautifulSoup
 import csv
 import re
+from unidecode import unidecode
 
 def get_html(url):
     r = requests.get(url)
@@ -21,9 +23,20 @@ def get_html(url):
 def get_total_pages(html):
     soup = BeautifulSoup(html, 'lxml')
     
-    pages = soup.find_all('span', class_='pagination-item-1WyVp')[-2].get('data-marker')
-    p = pages.split('(')[1].split(')')[0]
+    
+    try:
+        pages = soup.find_all('span', class_='pagination-item-1WyVp')[-2].get('data-marker')
+        p = pages.split('(')[1].split(')')[0]
+    except:
+        p = 1
+
     return int(p)
+
+
+
+def delete_symbol(str):
+    return re.sub(r'[^0-9.]+', r'', str)
+
 
 
 def get_page_data(html):
@@ -41,7 +54,7 @@ def get_page_data(html):
             title = ''
         try:
             pr = ad.find('span', class_='snippet-price').text.strip()
-            price = re.sub(r'[^0-9.]+', r'', pr)
+            price = delete_symbol(pr) + 'р.'
 
             #valuta = ad.find('span', class_='font_arial-rub').text.strip()
             
@@ -49,7 +62,19 @@ def get_page_data(html):
         except:
             price = ''    
         try:
-            url = 'https://www.avito.ru/' +  ad.find('h3').find('a').get('href')
+            #https://charbase.com/00b2-unicode-superscript-two charbase
+            #https://www.avito.ru/tver/komnaty?cd=1
+            url = 'https://www.avito.ru/' +  ad.find('h3').find('a').get('href').strip()
+
+            #url = url.encode(encoding='utf-8', errors='ignore').decode('cp1251', 'ignore')
+            #\u00b2
+            #a = u"1\u005c\u0078\u0062\u0032"
+            #a = a.encode('UTF-8').decode('UTF-8').encode('cp1251')
+            #url = unicode(u'\xb2', 'unicode-escape')
+            #url = unidecode(url)
+            #url = unicode.encode( url, "cp1251" )
+           
+            
         except:
             url = '' 
         try:
@@ -71,9 +96,10 @@ def get_page_data(html):
 def write_csv(data, name_file = 'avito'):
     #newline = '' (3 параметр, убрать разделение между строками)
     #encoding='utf-8'
-    with open(str(name_file) +'.csv','a', encoding="cp1251") as f:
+    with open(str(name_file) +'.csv','a', encoding="cp1251", newline='') as f:
         writer = csv.writer(f, delimiter=';')
-        
+      
+
         writer.writerow((data['title'],
                          data['price'],
                          data['data'],
@@ -83,10 +109,12 @@ def write_csv(data, name_file = 'avito'):
 
 def main(path):
     
+    if(path.find('avito.ru') == -1):
+        print('Вы вставили ссылку не с сайта Avito.ru!')
+        return
     if(path.find('?') == -1):
         print('Ваша URL ссылка не имеет параметров! Парсинг невозможен!')
         return
-
 
     base_url = path.split('?')[0] + '?' #'https://www.avito.ru/tver/igry_pristavki_i_programmy?'
     base_params = path.split('?')[1]
