@@ -1,5 +1,5 @@
 #Cоздание заголовка с названием региона + радиус
-#version 1.5
+#version 1.6
 
 #Spone 22.02.20
 #1.1 Добавлен ввод url
@@ -7,6 +7,7 @@
 #1.3 Исправлена ошибка с отображением цены товара
 #1.4 Вывод сообщения о создании файла
 #1.5 Проверка на корректность ссылки (параметры)
+#1.6 Полностью переписана структура параметров, добавлен радиус и геолокация
 
 import requests
 from bs4 import BeautifulSoup
@@ -86,23 +87,33 @@ def main(path):
         print('Ваша URL ссылка не имеет параметров! Парсинг невозможен!')
         return
 
-    base_url = path.split('?')[0] + '?' #'https://www.avito.ru/tver/igry_pristavki_i_programmy?p=1'
-    atributes2 = ''
 
-    if (path.find('&') != -1): 
-        atributes = path.split('?')[1].split('&')[0].split('=')[0] + '=1'
-        atributes2 = path.split('?')[1].split('&')[1].split('=')[0] + '='
-    else:
-        atributes = path.split('?')[1].split('=')[0] + '=1&p='    
+    base_url = path.split('?')[0] + '?' #'https://www.avito.ru/tver/igry_pristavki_i_programmy?'
+    base_params = path.split('?')[1]
+
+    #p = re.compile('=')
+    #col_params = len(p.findall(base_params))
+    #print(col_params)
     
+    atributes = ''   
+    if(base_params.find('cd=') != -1):
+        atributes = atributes + 'cd' + base_params.split('cd')[1].split('&')[0] + '&'   
+
+    if(base_params.find('radius=') != -1):    
+        atributes = atributes + 'radius' + base_params.split('radius')[1].split('&')[0] + '&'
+   
+    
+    if(base_params.find('geoCoords=') != -1):   
+        atributes = atributes + 'geoCoords' + base_params.split('geoCoords')[1].split('&')[0] + '&'
+
+    atributes = atributes + 'p='
+
     total_pages = get_total_pages(get_html(base_url))
 
     for i in range(1, total_pages + 1):
     #for i in range(1, 3):
-        if atributes2:
-            url_gen = base_url + atributes + '&' + atributes2 + str(i)
-        else:
-            url_gen = base_url + atributes + str(i)
+       
+        url_gen = base_url + atributes + str(i)
 
         html = get_html(url_gen)
         page = get_page_data(html)
