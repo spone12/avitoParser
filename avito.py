@@ -1,6 +1,7 @@
 #1.1 Добавлен ввод url
 #1.2 Добавлено имя файла.csv
 #1.3 Исправлена ошибка с отображением цены товара
+#1.4 Вывод сообщения о создании файла
 
 import requests
 from bs4 import BeautifulSoup
@@ -35,6 +36,10 @@ def get_page_data(html):
         try:
             pr = ad.find('span', class_='snippet-price').text.strip()
             price = re.sub(r'[^0-9.]+', r'', pr)
+
+            #valuta = ad.find('span', class_='font_arial-rub').text.strip()
+            
+           # price = price + ' ' + valuta
         except:
             price = ''    
         try:
@@ -53,6 +58,7 @@ def get_page_data(html):
     
         write_csv(data, name_file)
 
+    return name_file
     #return ads
 
 
@@ -92,7 +98,7 @@ def main(path):
         html = get_html(url_gen)
         page = get_page_data(html)
 
-        #print(page)
+    print('Excel файл \'' + page + '.csv\' успешно создан! ')
 
 if __name__ == '__main__':
     path = input('Введите url адрес с сайта avito: ')
