@@ -1,9 +1,11 @@
-#version 1.2
-#Добавлено имя файла
+#1.1 Добавлен ввод url
+#1.2 Добавлено имя файла.csv
+#1.3 Исправлена ошибка с отображением цены товара
 
 import requests
 from bs4 import BeautifulSoup
 import csv
+import re
 
 def get_html(url):
     r = requests.get(url)
@@ -31,7 +33,8 @@ def get_page_data(html):
         except:
             title = ''
         try:
-            price = ad.find('span', class_='snippet-price ').text
+            pr = ad.find('span', class_='snippet-price').text.strip()
+            price = re.sub(r'[^0-9.]+', r'', pr)
         except:
             price = ''    
         try:
@@ -47,15 +50,16 @@ def get_page_data(html):
                 'price':price,
                 'url':url,
                 'data':data}
-
-        write_csv(data,name_file)
+    
+        write_csv(data, name_file)
 
     #return ads
 
 
-def write_csv(data,name_file = 'avito'):
+def write_csv(data, name_file = 'avito'):
     #newline = '' (3 параметр, убрать разделение между строками)
-    with open(str(name_file) +'.csv','a') as f:
+    #encoding='utf-8'
+    with open(str(name_file) +'.csv','a', encoding="cp1251") as f:
         writer = csv.writer(f, delimiter=';')
         
         writer.writerow((data['title'],
@@ -68,8 +72,6 @@ def write_csv(data,name_file = 'avito'):
 def main(path):
     
     base_url = path.split('?')[0] + '?' #'https://www.avito.ru/tver/igry_pristavki_i_programmy?p=1'
-    #atributes = path.split('?')[1].split('=')[0] + '='
-    #atributes2 = path.split('?')[1].split('=')[2] + '='
     atributes2 = ''
 
     if (path.find('&') != -1): 
@@ -81,7 +83,7 @@ def main(path):
     total_pages = get_total_pages(get_html(base_url))
 
     for i in range(1, total_pages + 1):
-    #for i in range(1, 2 + 1):
+    #for i in range(1, 3):
         if atributes2:
             url_gen = base_url + atributes + '&' + atributes2 + str(i)
         else:
