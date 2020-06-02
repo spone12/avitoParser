@@ -1,5 +1,4 @@
-#Cоздание заголовка с названием региона + радиус
-#version 1.6
+#version 1.8
 
 #Spone 22.02.20
 #1.1 Добавлен ввод url
@@ -9,6 +8,9 @@
 #1.5 Проверка на корректность ссылки (параметры) и что является сайтом avito
 #1.6 Полностью переписана структура параметров, добавлен радиус и геолокация
 #1.7 Убрана завязка на количество страниц, теперь если только одна страница, то берётся только с неё
+#1.8 Сделана замена неизвестных символов юникода на (?), добавлены новые атрибуты
+
+#Необходимо исправить кол-во
 
 import requests
 from bs4 import BeautifulSoup
@@ -62,18 +64,7 @@ def get_page_data(html):
         except:
             price = ''    
         try:
-            #https://charbase.com/00b2-unicode-superscript-two charbase
-            #https://www.avito.ru/tver/komnaty?cd=1
             url = 'https://www.avito.ru/' +  ad.find('h3').find('a').get('href').strip()
-
-            #url = url.encode(encoding='utf-8', errors='ignore').decode('cp1251', 'ignore')
-            #\u00b2
-            #a = u"1\u005c\u0078\u0062\u0032"
-            #a = a.encode('UTF-8').decode('UTF-8').encode('cp1251')
-            #url = unicode(u'\xb2', 'unicode-escape')
-            #url = unidecode(url)
-            #url = unicode.encode( url, "cp1251" )
-           
             
         except:
             url = '' 
@@ -96,7 +87,7 @@ def get_page_data(html):
 def write_csv(data, name_file = 'avito'):
     #newline = '' (3 параметр, убрать разделение между строками)
     #encoding='utf-8'
-    with open(str(name_file) +'.csv','a', encoding="cp1251", newline='') as f:
+    with open(str(name_file) +'.csv','a', encoding="cp1251", newline='',errors='replace') as f:
         writer = csv.writer(f, delimiter=';')
       
 
@@ -104,6 +95,36 @@ def write_csv(data, name_file = 'avito'):
                          data['price'],
                          data['data'],
                          data['url']
+                         ))
+
+
+def paste_total(url, name_file = 'avito'):
+    soup = BeautifulSoup(url, 'lxml') 
+
+    try:
+        total = soup.find('span', class_='page-title-count-1oJOc').text
+    except:
+        total = 0
+    try:        
+        name_razdel = soup.find('h1', class_='page-title-inline-2v2CW').text.strip()
+    except:
+        name_razdel = ''    
+
+    data = {'total': total,
+            'name_razdel':name_razdel
+           }
+
+    write_shapka_csv(data,name_file)       
+
+def write_shapka_csv(data, name_file = 'avito'):
+    #newline = '' (3 параметр, убрать разделение между строками)
+    #encoding='utf-8'
+    with open(str(name_file) +'.csv','a', encoding="cp1251", newline='') as f:
+        writer = csv.writer(f, delimiter=';')
+      
+
+        writer.writerow((data['name_razdel'],
+                         data['total']
                          ))
 
 
@@ -118,10 +139,6 @@ def main(path):
 
     base_url = path.split('?')[0] + '?' #'https://www.avito.ru/tver/igry_pristavki_i_programmy?'
     base_params = path.split('?')[1]
-
-    #p = re.compile('=')
-    #col_params = len(p.findall(base_params))
-    #print(col_params)
     
     atributes = ''   
     if(base_params.find('cd=') != -1):
@@ -129,10 +146,24 @@ def main(path):
 
     if(base_params.find('radius=') != -1):    
         atributes = atributes + 'radius' + base_params.split('radius')[1].split('&')[0] + '&'
-   
     
     if(base_params.find('geoCoords=') != -1):   
         atributes = atributes + 'geoCoords' + base_params.split('geoCoords')[1].split('&')[0] + '&'
+
+    if(base_params.find('pmax=') != -1):   
+        atributes = atributes + 'pmax' + base_params.split('pmax')[1].split('&')[0] + '&'
+
+    if(base_params.find('pmin=') != -1):   
+        atributes = atributes + 'pmin' + base_params.split('pmin')[1].split('&')[0] + '&'
+
+    if(base_params.find('user=') != -1):   
+        atributes = atributes + 'user' + base_params.split('user')[1].split('&')[0] + '&'
+    
+    if(base_params.find('f=') != -1):   
+        atributes = atributes + 'f' + base_params.split('f')[1].split('&')[0] + '&'
+
+    if(base_params.find('s=') != -1):   
+        atributes = atributes + 's' + base_params.split('s')[1].split('&')[0] + '&'
 
     atributes = atributes + 'p='
 
@@ -146,6 +177,8 @@ def main(path):
         html = get_html(url_gen)
         page = get_page_data(html)
 
+    paste_total(base_url + atributes + str(1), page)
+    #page-title-count-1oJOc
     print('Excel файл \'' + page + '.csv\' успешно создан! ')
 
 if __name__ == '__main__':
