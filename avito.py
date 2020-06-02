@@ -1,5 +1,5 @@
-#https://www.avito.ru/tver/igry_pristavki_i_programmy?p=2
-#https://www.youtube.com/watch?v=zlWiw99bBUk
+#version 1.2
+#Добавлено имя файла
 
 import requests
 from bs4 import BeautifulSoup
@@ -20,6 +20,7 @@ def get_total_pages(html):
 def get_page_data(html):
     soup = BeautifulSoup(html, 'lxml')
 
+    name_file = soup.find('a', class_='rubricator-list-item-link_current-25dGP').text.strip()
     ads = soup.find_all('div', class_='item_table-description')
     
     
@@ -47,14 +48,14 @@ def get_page_data(html):
                 'url':url,
                 'data':data}
 
-        write_csv(data)
+        write_csv(data,name_file)
 
     #return ads
 
 
-def write_csv(data):
+def write_csv(data,name_file = 'avito'):
     #newline = '' (3 параметр, убрать разделение между строками)
-    with open('avito.csv','a') as f:
+    with open(str(name_file) +'.csv','a') as f:
         writer = csv.writer(f, delimiter=';')
         
         writer.writerow((data['title'],
