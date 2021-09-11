@@ -17,96 +17,93 @@ from bs4 import BeautifulSoup
 import csv
 import re
 from unidecode import unidecode
+from urllib.request import urlopen
 
-def get_html(url):
+titles = {'title'       : 'Наименование',
+          'price'       : 'Цена',
+          'description' : 'Описание',
+          'url'         : 'URL адрес'}
+
+def getHtml(url):
     r = requests.get(url)
     return r.text
 
-def get_total_pages(html):
+def getTotalPages(html):
     soup = BeautifulSoup(html, 'lxml')
     
-    
     try:
-        pages = soup.find_all('span', class_='pagination-item-1WyVp')[-2].get('data-marker')
+        pages = soup.find_all('span', class_='pagination-item-JJq_j')[-2].get('data-marker')
         p = pages.split('(')[1].split(')')[0]
     except:
         p = 1
 
     return int(p)
 
-
-
-def delete_symbol(str):
+def deleteSymbol(str):
     return re.sub(r'[^0-9.]+', r'', str)
 
-
-
-def get_page_data(html):
+def getPageData(html):
     soup = BeautifulSoup(html, 'lxml')
 
-    name_file = soup.find('a', class_='rubricator-list-item-link_current-25dGP').text.strip()
-    ads = soup.find_all('div', class_='item_table-description')
-    
-    
+    try:    
+        name_file = soup.find('a', {'class':'rubricator-list-item-link_current-fnAHj'})['title']
+    except Exception as e:
+        name_file = 'None'
+
+    ads = soup.find_all('div', class_='iva-item-content-UnQQ4')
+    writeCsv(titles, name_file) ##write title
+                         
     for ad in ads:
-        #title,price,place
+        #title,price, description, url
         try:
-            title = ad.find('h3').find('a').text.strip() #get('title')
+            title = ad.find('h3', class_='title-root-j7cja').text.strip()
         except:
             title = ''
         try:
-            pr = ad.find('span', class_='snippet-price').text.strip()
-            price = delete_symbol(pr) + 'р.'
-
-            #valuta = ad.find('span', class_='font_arial-rub').text.strip()
-            
-           # price = price + ' ' + valuta
+            pr = ad.find('span', class_='price-text-E1Y7h').text.strip()
+            price = deleteSymbol(pr) + 'р.'
         except:
             price = ''    
         try:
-            url = 'https://www.avito.ru/' +  ad.find('h3').find('a').get('href').strip()
-            
+            url = 'https://www.avito.ru/' + ad.find('a', {'class':'link-link-MbQDP'})['href']
         except:
             url = '' 
         try:
-            data = ad.find('div', class_='snippet-date-info').text.strip()
+            description = ad.find('div', class_='iva-item-description-S2pXQ').text.strip()
         except:
-            data = ''           
+            description = ''           
 
         data = {'title':title,
                 'price':price,
                 'url':url,
-                'data':data}
-    
-        write_csv(data, name_file)
+                'description':description}
+
+        writeCsv(data, name_file)
 
     return name_file
     #return ads
 
-
-def write_csv(data, name_file = 'avito'):
+def writeCsv(data, name_file = 'avito'):
     #newline = '' (3 параметр, убрать разделение между строками)
-    #encoding='utf-8'
-    with open(str(name_file) +'.csv','a', encoding="cp1251", newline='',errors='replace') as f:
+    with open(str(name_file) +'.csv','a', encoding="cp1251", newline='', errors='replace') as f:
         writer = csv.writer(f, delimiter=';')
       
-
         writer.writerow((data['title'],
                          data['price'],
-                         data['data'],
+                         data['description'],
                          data['url']
                          ))
 
-
-def paste_total(url, name_file = 'avito'):
-    soup = BeautifulSoup(url, 'lxml') 
+def pasteTotal(url, name_file = 'avito'):
+    text = getHtml(url)
+    soup = BeautifulSoup(text, 'lxml') 
 
     try:
-        total = soup.find('span', class_='page-title-count-1oJOc').text
+        total = soup.find('span', class_='page-title-count-wQ7pG').text
     except:
         total = 0
     try:        
-        name_razdel = soup.find('h1', class_='page-title-inline-2v2CW').text.strip()
+        name_razdel = soup.find('h1', class_='page-title-inline-zBPFx').text.strip()
     except:
         name_razdel = ''    
 
@@ -118,7 +115,6 @@ def paste_total(url, name_file = 'avito'):
 
 def write_shapka_csv(data, name_file = 'avito'):
     #newline = '' (3 параметр, убрать разделение между строками)
-    #encoding='utf-8'
     with open(str(name_file) +'.csv','a', encoding="cp1251", newline='') as f:
         writer = csv.writer(f, delimiter=';')
       
@@ -126,7 +122,6 @@ def write_shapka_csv(data, name_file = 'avito'):
         writer.writerow((data['name_razdel'],
                          data['total']
                          ))
-
 
 def main(path):
     
@@ -137,8 +132,8 @@ def main(path):
         print('Ваша URL ссылка не имеет параметров! Парсинг невозможен!')
         return
 
-    base_url = path.split('?')[0] + '?' #'https://www.avito.ru/tver/igry_pristavki_i_programmy?'
-    base_params = path.split('?')[1]
+    base_url = path.split('?')[0] + '?' #link before parametrs
+    base_params = path.split('?')[1] #attributes
     
     atributes = ''   
     if(base_params.find('cd=') != -1):
@@ -166,19 +161,17 @@ def main(path):
         atributes = atributes + 's' + base_params.split('s')[1].split('&')[0] + '&'
 
     atributes = atributes + 'p='
-
-    total_pages = get_total_pages(get_html(base_url))
+    
+    total_pages = getTotalPages(getHtml(base_url))
 
     for i in range(1, total_pages + 1):
-    #for i in range(1, 3):
-       
         url_gen = base_url + atributes + str(i)
+        html = getHtml(url_gen)
+        page = getPageData(html)
 
-        html = get_html(url_gen)
-        page = get_page_data(html)
+       
+    pasteTotal(base_url + atributes + str(1), page)
 
-    paste_total(base_url + atributes + str(1), page)
-    #page-title-count-1oJOc
     print('Excel файл \'' + page + '.csv\' успешно создан! ')
 
 if __name__ == '__main__':
