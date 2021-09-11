@@ -1,16 +1,5 @@
-#version 1.8
-
-#Spone 22.02.20
-#1.1 Добавлен ввод url
-#1.2 Добавлено имя файла.csv
-#1.3 Исправлена ошибка с отображением цены товара
-#1.4 Вывод сообщения о создании файла
-#1.5 Проверка на корректность ссылки (параметры) и что является сайтом avito
-#1.6 Полностью переписана структура параметров, добавлен радиус и геолокация
-#1.7 Убрана завязка на количество страниц, теперь если только одна страница, то берётся только с неё
-#1.8 Сделана замена неизвестных символов юникода на (?), добавлены новые атрибуты
-
-#Необходимо исправить кол-во
+#Version 1.11
+#Author: Spone
 
 import requests
 from bs4 import BeautifulSoup
@@ -20,10 +9,14 @@ from unidecode import unidecode
 from urllib.request import urlopen
 
 coutAds = 0
-titles = {'title'       : 'Наименование',
-          'price'       : 'Цена',
-          'description' : 'Описание',
-          'url'         : 'URL адрес'}
+titles = {
+    'title'       : 'Наименование',
+    'price'       : 'Цена',
+    'date'        : 'Дата',
+    'address'     : 'Адрес',
+    'description' : 'Описание',
+    'url'         : 'URL адрес'
+}
 
 def getHtml(url):
     r = requests.get(url)
@@ -44,7 +37,7 @@ def deleteSymbol(str):
 
     cutPrice = re.sub(r'[^0-9.]+', r'', str)
     if not cutPrice:
-        return 'Цена не указана'
+        return str
 
     return cutPrice + 'р.'
 
@@ -52,16 +45,17 @@ def getPageData(html):
     soup = BeautifulSoup(html, 'lxml')
 
     try:    
-        name_file = soup.find('a', {'class':'rubricator-list-item-link_current-fnAHj'})['title']
+        fileName = soup.find('a', {'class':'rubricator-list-item-link_current-fnAHj'})['title']
     except Exception as e:
-        name_file = 'None'
+        fileName = 'No_name'
 
     ads = soup.find_all('div', class_='iva-item-content-UnQQ4')
-    writeCsv(titles, name_file) ##write title
+    writeCsv(titles, fileName) ##write title
 
     global coutAds
     for ad in ads:
-        #title,price, description, url
+
+        #TITLES: title, price, date, address, description, url
         try:
             title = ad.find('h3', class_='title-root-j7cja').text.strip()
         except:
@@ -72,6 +66,14 @@ def getPageData(html):
         except:
             price = ''    
         try:
+            date = ad.find('div', class_='date-text-VwmJG').text.strip()
+        except:
+            date = '' 
+        try:
+            address = ad.find('span', class_='geo-address-QTv9k').text.strip()
+        except:
+            address = '' 
+        try:
             url = 'https://www.avito.ru/' + ad.find('a', {'class':'link-link-MbQDP'})['href']
         except:
             url = '' 
@@ -80,30 +82,36 @@ def getPageData(html):
         except:
             description = ''           
 
-        data = {'title':title,
-                'price':price,
-                'url':url,
-                'description':description}
+        data = {
+            'title'  :title,
+            'price'  :price,
+            'date'   :date,
+            'address':address,
+            'url'    :url,
+            'description':description
+        }
 
         coutAds += 1
-        writeCsv(data, name_file)
+        writeCsv(data, fileName)
         
+    return fileName
 
-    return name_file
-    #return ads
+def writeCsv(data, fileName = 'avito'):
 
-def writeCsv(data, name_file = 'avito'):
-    #newline = '' (3 параметр, убрать разделение между строками)
-    with open(str(name_file) +'.csv','a', encoding="cp1251", newline='', errors='replace') as f:
+    fileName = str(fileName) +'.csv'
+    with open(fileName, 'a', encoding = "cp1251", newline = '', errors = 'replace') as f:
         writer = csv.writer(f, delimiter=';')
       
-        writer.writerow((data['title'],
-                         data['price'],
-                         data['description'],
-                         data['url']
-                         ))
+        writer.writerow((
+            data['title'],
+            data['price'],
+            data['date'],
+            data['address'],
+            data['description'],
+            data['url']
+        ))
 
-def pasteTotal(url, name_file = 'avito'):
+def pasteTotal(url, fileName = 'avito'):
     text = getHtml(url)
     soup = BeautifulSoup(text, 'lxml') 
 
@@ -113,21 +121,24 @@ def pasteTotal(url, name_file = 'avito'):
         nameChapter = ''    
 
     global coutAds
-    data = {'total': int(coutAds),
-            'nameChapter': nameChapter
-           }
+    data = {
+        'total': int(coutAds),
+        'nameChapter': nameChapter
+    }
 
-    write_shapka_csv(data,name_file)       
+    writeTotalCsv(data, fileName)       
 
-def write_shapka_csv(data, name_file = 'avito'):
-    #newline = '' (3 параметр, убрать разделение между строками)
-    with open(str(name_file) +'.csv','a', encoding="cp1251", newline='') as f:
+def writeTotalCsv(data, fileName = 'avito'):
 
-        writer = csv.writer(f, delimiter=';')
-        writer.writerow((data['nameChapter'],
-                         data['total'],
-                         'объявлений'
-                         ))
+    fileName = str(fileName) +'.csv'
+    with open(fileName ,'a', encoding="cp1251", newline='') as f:
+
+        writer = csv.writer(f, delimiter = ';')
+        writer.writerow((
+            data['nameChapter'],
+            data['total'],
+            'объявлений'
+        ))
 
 def main(path):
     
@@ -156,4 +167,3 @@ def main(path):
 if __name__ == '__main__':
     path = input('Введите url адрес с сайта avito: ')
     main(path)
-
