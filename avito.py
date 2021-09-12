@@ -140,10 +140,33 @@ def writeTotalCsv(data, fileName = 'avito'):
             'объявлений'
         ))
 
+def checkCategoryError(path):
+
+    checkCategoryError = 0
+    categoryCheck = getHtml(path)
+    soup = BeautifulSoup(categoryCheck, 'lxml')
+
+    try:
+        check = soup.find('div', class_='item-view-socials')
+
+        if(check):
+            checkCategoryError = 1
+    except:
+        checkCategoryError = 0
+    
+    return checkCategoryError
+
+
 def main(path):
     
     if(path.find('avito.ru') == -1):
         print('Вы вставили ссылку не с сайта Avito.ru!')
+        return
+    
+    checkCategory = checkCategoryError(path)
+
+    if(checkCategory):
+        print('Вы не выбрали категорию объявлений!')
         return
 
     if(path.find('?') == -1):
